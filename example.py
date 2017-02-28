@@ -35,6 +35,6 @@ cube = ghcnd.create_cube(data, stn_id, lat, lon, stn_elev, name)
 cube.data = cube.data / 10.
 cube.units = 'degrees_c'
 
-iris.save(cube, 'NetCDFs/'+stn_id+'_'+'_'.join(name.split())+'.nc')
+iris.save(cube, 'NetCDFs/'+stn_id+'_'+'_'.join(name.split())+'_'+element+'.nc')
 print('\nNote: These netcdf files may be considerably larger than the input data, '+
  	 'therefore it may be appropriate to recreate them as-and-when you need them if disk space is an issue.')
