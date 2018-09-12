@@ -15,12 +15,12 @@ Date:   28th February 2017
 '''
 
 import numpy as np
+import pandas as pd
 
 missing_id = '-9999'
 
 
-
-def extract_data(filename):
+def create_DataFrame(filename):
 
 	### read all data
 	lines = np.genfromtxt(filename, delimiter='\n', dtype='str')
@@ -47,7 +47,8 @@ def extract_data(filename):
 		line = line_tmp.ljust(linewidth)
 
 		### extract values from original line
-		### each new index (i) represents a different month for this line (i.e., year and station)
+		### each new index (i) represents a different month for this 
+		### line (i.e., year and station)
 		for d in range(0,31):
 
 			stn_id[i]  = line[0:11]
@@ -72,96 +73,36 @@ def extract_data(filename):
 
 			i = i + 1 ### interate by line and by day
 
-	### convert to numpy array
-	dt = np.dtype([ ('station', '|S11'), ('year', 'i'), ('month', 'i'), ('day', 'i'), ('element', '|S4'),
-					 ('value', 'd'), ('mflag', '|S1'), ('qflag', '|S1'), ('sflag', '|S1') ])
+	### Convert to Pandas DataFrame
+	df = pd.DataFrame(columns=['station', 'year', 'month', 'day',
+								'element', 'value',
+								'mflag', 'qflag', 'sflag'])
 
-	array = np.zeros( nlines*31, dt )
+	df['station'] = stn_id
+	df['year']    = year
+	df['month']   = month
+	df['day']     = day
+	df['element'] = element
+	df['value']   = value
+	df['mflag']   = mflag
+	df['qflag']   = qflag
+	df['sflag']   = sflag
 
-	array['station'] = stn_id
-	array['year']    = year
-	array['month']   = month
-	array['day']     = day
-	array['element'] = element
-	array['value']   = value
-	array['mflag']   = mflag
-	array['qflag']   = qflag
-	array['sflag']   = sflag
+	df = df.replace(-9999.0, np.nan)
 
-	return array
-
-
-def get_metadata(filename, desired_stn_id):
-
-	lines = np.genfromtxt(filename, delimiter='\n', dtype='str')
-	linewidth = lines.dtype.itemsize
-
-	for line in lines:
-		### return a string of the correct width, left-justified
-		line = line.ljust(linewidth)
-
-		stn_id   = line[0:11]
-		lat      = np.float( line[12:20] )
-		lon      = np.float( line[21:30] )
-		stn_elev = np.float( line[31:37] )
-		name     =           line[38:68]
-
-		if stn_id == str(desired_stn_id):
-		 	return lat, lon, stn_elev, name
+	return df
 
 
-
-
-def create_cube(data, stn_id, lat, lon, stn_elev, name):
-
-	### using http://scitools.org.uk/iris/
-	import iris
-	from iris.coords import DimCoord, AuxCoord
-	from cf_units import Unit
-	from datetime import datetime
-
-	index = np.where( (data['station'] == stn_id) & (data['year'] >= 1900) )[0]
-	data = data[index]
-	ntimes = len(data)
-	years  = data['year']
-	months = data['month']
-	days   = data['day']
-
-	dt0 = datetime(year=1900, month=1, day=1)
-	dt0_str = dt0.strftime('%Y-%m-%d')
-
-	if (len(np.unique(data['element'])) == 1):
-		name_str = data['element'][0]
-
-	time = np.zeros(ntimes)
-	keep_ind = np.array([]).astype(int)
-	for i in range(0, ntimes):
-		if data['value'][i] != np.float(missing_id):
-			dt = datetime(year=years[i], month=months[i], day=days[i])
-			time[i] = (dt - dt0).days
-			keep_ind = np.append(keep_ind, i)
-
-	### remove days that do not exist (e.g., 31st February)
-	time = time[keep_ind]
-	data = data[keep_ind]
-
-	cube = iris.cube.Cube(np.zeros((len(time))), long_name=name_str, units="1")
-
-	### define time dimension
-	time_coord = DimCoord(time, "time", units=Unit("days since "+dt0_str, calendar='gregorian'))
-	cube.add_dim_coord(time_coord, 0)
-
-	### add lat, lon, elevation as scalar coords
-	cube.add_aux_coord(AuxCoord(lat,      long_name='latitude',   units='degrees')) 
-	cube.add_aux_coord(AuxCoord(lon,      long_name='longitude',  units='degrees'))
-	cube.add_aux_coord(AuxCoord(stn_elev, long_name='elevation',  units='m'))
-
-	#### add station ID within attributes
-	cube.attributes = { 'StationID': stn_id,
-						'StationName': '_'.join(name.split())
-						}
-
-	### insert data into cube
-	cube.data = data['value']
-
-	return cube
+def add_metadata(df, meta_fname):
+	md = pd.read_fwf(meta_fname, colspecs=[(0,12), (13,21), (23,31), 
+											(31,38), (38,69)], 
+	                    names=['station','lat','lon','elev','name'])
+	md = md.set_index('station')
+	stn_ids = df['station'].values
+	md1 = md.loc[stn_ids, ['lat','lon','elev','name']]
+	df['lat']  = md1['lat'].values
+	df['lon']  = md1['lon'].values
+	df['elev'] = md1['elev'].values
+	df['name'] = md1['name'].values
+	df = df.replace(-999.0, np.nan)
+	return df
