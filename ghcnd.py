@@ -41,6 +41,8 @@ def create_DataFrame(filename):
 	### Loop through all lines in input file
 	i = 0 ### start iteration from zero
 
+	warnings = []
+
 	for line_tmp in lines:
 
 		### return a string of the correct width, left-justified
@@ -62,8 +64,17 @@ def create_DataFrame(filename):
 		
 			val_tmp  = line[ cols[0]:cols[1] ]
 
-			if (val_tmp == missing_id ): 
+			if val_tmp == missing_id: 
 				value[i] = val_tmp
+			elif element[i] in ['PRCP', 'TMAX', 'TMIN', 'AWND', 'EVAP', 
+								'MDEV', 'MDPR', 'MDTN', 'MDTX', 
+								'MNPN', 'MXPN']:
+				### these are in tenths of a UNIT
+				### (e.g., tenths of degrees C)
+				warnings.append(element[i]+\
+						' values have been divided by ten' + \
+						' as specified by readme.txt')
+				value[i] = np.float(val_tmp) / 10.
 			else:
 				value[i] = np.float(val_tmp)
 			
@@ -72,6 +83,10 @@ def create_DataFrame(filename):
 			sflag[i] = line[ cols[3] ]
 
 			i = i + 1 ### interate by line and by day
+
+	### Print any warnings
+	warnings = np.unique(np.array(warnings))
+	for w in warnings: print w
 
 	### Convert to Pandas DataFrame
 	df = pd.DataFrame(columns=['station', 'year', 'month', 'day',
