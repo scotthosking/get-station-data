@@ -109,7 +109,7 @@ def create_DataFrame(filename):
 
 
 def add_metadata(df, meta_fname):
-	md = pd.read_fwf(meta_fname, colspecs=[(0,12), (13,21), (23,31), 
+	md = pd.read_fwf(meta_fname, colspecs=[(0,12), (12,21), (21,31), 
 											(31,38), (38,69)], 
 	                    names=['station','lat','lon','elev','name'])
 	md = md.set_index('station')
