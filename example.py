@@ -18,10 +18,14 @@ filename = 'CHM00057516.dly'
 
 ### Extract all data into a labelled numpy array
 df = ghcnd.create_DataFrame('indata/'+filename)
-df = df.drop(['mflag', 'qflag', 'sflag'], axis=1)
 
 ### Filter data for, e.g., desired variable etc
-df = df[ df['element'] == 'TMAX' ]
+var = 'TMIN'
+df = df[ df['element'] == var ]
+
+### Tidy up columns
+df = df.rename(index=str, columns={"value": var})
+df = df.drop(['mflag', 'qflag', 'sflag', 'element'], axis=1)
 
 ### Add metadata
 df = ghcnd.add_metadata(df, 'ghcnd-stations.txt')
@@ -29,4 +33,4 @@ df = ghcnd.add_metadata(df, 'ghcnd-stations.txt')
 ### Save to file
 name = '-'.join(np.unique(df['name'].values))
 stn  = '-'.join(np.unique(df['station'].values))
-df.to_csv(name+'_'+stn+'_GHCND.csv', index=False)
+df.to_csv(name+'_'+stn+'_'+var+'_GHCN-D.csv', index=False)
