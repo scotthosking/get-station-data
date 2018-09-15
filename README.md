@@ -6,8 +6,12 @@ GHCND.py is a set of Python tools to make it easier to work with station data fr
 Extract variable/element of interest from the
 Global Historical Climatology Network Daily (GHCND) Version 3
 
-To run this script you will need to save the ghcnd.py file along side the 
-        GHCN-D '.dly' and 'ghcnd-stations.txt' files.
+To run this you will need:
+* A GHCN-D '.dly' file for your chosen station
+* the 'ghcnd-stations.txt' metadata file (see https://www1.ncdc.noaa.gov/pub/data/ghcn/daily/ghcnd-stations.txt)
+
+More information on the data can be found here:
+https://www1.ncdc.noaa.gov/pub/data/ghcn/daily/readme.txt
 
 
 ## Example
@@ -21,14 +25,17 @@ import ghcnd
 
 
 ```python
-### Name of original daily data file from GHCN-D
-### e.g., ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/all/UKM00003772.dly
-filename = 'CHM00057516.dly'
+'''
+1. Find Station Names from Here:
+    https://www1.ncdc.noaa.gov/pub/data/ghcn/daily/ghcnd-stations.txt
+2. Download station file (for example...)
+    wget ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/all/CHM00057516.dly .
+'''
 
 ### Extract all data into a labelled numpy array
-df = ghcnd.create_DataFrame('indata/'+filename)
+df = ghcnd.create_DataFrame('CHM00057516.dly')
 
-### Filter data for, e.g., desired variable etc
+### Filter data for, e.g., desired variable
 var = 'TMIN'
 df = df[ df['element'] == var ]
 
@@ -245,7 +252,7 @@ df.head(n=10)
 
 ```python
 ### Save to file
-name = '-'.join(np.unique(df['name'].values))
+name = '-'.join(np.unique(df['name'].values))    # in case there are more than one
 stn  = '-'.join(np.unique(df['station'].values))
 df.to_csv(name+'_'+stn+'_'+var+'_GHCN-D.csv', index=False)
 ```
