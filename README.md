@@ -32,8 +32,15 @@ import ghcnd
     wget ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/all/CHM00057516.dly .
 '''
 
+### Choose a station (by name, lon/lat etc)
+stn_md = ghcnd.get_stn_metadata('ghcnd-stations.txt')
+my_stn = stn_md[ stn_md['name'] == 'CHONGQING' ].iloc[0]
+
+### Name of original daily data file from GHCN-D
+filename = my_stn['station']+'.dly' 
+
 ### Extract all data into a labelled numpy array
-df = ghcnd.create_DataFrame('CHM00057516.dly')
+df = ghcnd.create_DataFrame('indata/'+filename)
 
 ### Filter data for, e.g., desired variable
 var = 'TMIN'
@@ -44,7 +51,7 @@ df = df.rename(index=str, columns={"value": var})
 df = df.drop(['element'], axis=1)
 
 ### Add metadata
-df = ghcnd.add_metadata(df, 'ghcnd-stations.txt')
+df = ghcnd.add_metadata(df, stn_md)
 ```
 
     PRCP values have been divided by ten as specified by readme.txt
