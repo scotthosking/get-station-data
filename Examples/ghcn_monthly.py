@@ -10,7 +10,7 @@ To run this script you will need to save the ghcnm.py file along side the
 
 import numpy as np
 import pandas as pd
-import ghcnm
+from get_station_data import ghcnm
 
 ### Name of original data file from GHCN-M
 ### ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/v3/

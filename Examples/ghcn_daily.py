@@ -10,7 +10,7 @@ To run this script you will need to save the ghcnd.py file along side the
 
 import numpy as np
 import pandas as pd
-import ghcnd
+from get_station_data import ghcnd
 
 ### Choose a station (by name, lon/lat etc)
 stn_md = ghcnd.get_stn_metadata('ghcnd-stations.txt')
