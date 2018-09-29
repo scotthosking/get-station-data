@@ -16,6 +16,7 @@ Date:   28th February 2017
 
 import numpy as np
 import pandas as pd
+from datetime import datetime
 
 missing_id = '-9999'
 
@@ -105,6 +106,22 @@ def create_DataFrame(filename):
     df['sflag']   = sflag
 
     df = df.replace(-9999.0, np.nan)
+
+    ### Test validity of dates and add datetime
+    dt = []
+    for index, row in df.iterrows():
+        try:
+            dt.append( datetime(row['year'], row['month'], row['day']) )
+        except ValueError:
+            print('Date does not exist:'+\
+                                str(row['year'])+'-'+\
+                                str(row['month'])+'-'+\
+                                str(row['day']) )
+            dt.append( np.nan )
+
+    df['date'] = dt
+    df = df.dropna( subset=['date'] )
+
 
     return df
 
