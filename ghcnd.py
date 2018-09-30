@@ -125,8 +125,11 @@ def create_DataFrame(filename):
     return df
 
 
-def get_stn_metadata(meta_fname):
-    md = pd.read_fwf(meta_fname, colspecs=[(0,12), (12,21), (21,31), 
+def get_stn_metadata(fname=None):
+    url = 'https://www1.ncdc.noaa.gov/pub/data/ghcn/daily/ghcnd-stations.txt'
+    if fname == None:
+        fname = url
+    md = pd.read_fwf(fname, colspecs=[(0,12), (12,21), (21,31), 
                                             (31,38), (38,69)], 
                         names=['station','lat','lon','elev','name'])
     return md

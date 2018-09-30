@@ -33,7 +33,7 @@ def create_DataFrame(data_file, country_codes_file=None):
     ### Sanity Checks
     if (data_file.endswith('.dat') == False):
         raise ValueError('filename does not look correct')
-    version = data_file[11:13]
+    version = data_file.split('/')[-1].split('.')[2]
     if (version != 'v3'):
         raise ValueError('This filename appears to be for GHCN-M '+version+ \
                                     '. This has only been tested for v3')
