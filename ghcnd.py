@@ -21,7 +21,42 @@ from datetime import datetime
 missing_id = '-9999'
 
 
-def create_DataFrame(filename):
+def get_data(my_stns):
+
+    stn_md = get_stn_metadata()
+    dfs = []
+
+    for stn_id in pd.unique(my_stns['station']):
+
+        stn_md1 = stn_md[ stn_md['station'] == stn_id ]
+        lat     = stn_md1['lat'].values[0]
+        lon     = stn_md1['lon'].values[0]
+        elev    = stn_md1['elev'].values[0]
+        name    = stn_md1['name'].values[0]
+
+        file = 'ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/all/'+stn_id+'.dly'
+        df   = _create_DataFrame_1stn(file)
+
+        if len(pd.unique(df['station'])) == 1:
+            df['lon']  = lon
+            df['lat']  = lat
+            df['elev'] = elev
+            df['name'] = name
+        else:
+            raise ValueError('more than one station ID in file')
+
+        dfs.append(df)
+
+    df = pd.concat(dfs)
+
+    df = df.replace(-999.0, np.nan)
+
+    return df
+
+
+
+
+def _create_DataFrame_1stn(filename, verbose=False):
 
     ### read all data
     lines     = np.genfromtxt(filename, delimiter='\n', dtype='str')
@@ -88,7 +123,8 @@ def create_DataFrame(filename):
 
     ### Print any warnings
     warnings = np.unique(np.array(warnings))
-    for w in warnings: print(w)
+    if verbose ==True:
+        for w in warnings: print(w)
 
     ### Convert to Pandas DataFrame
     df = pd.DataFrame(columns=['station', 'year', 'month', 'day',
@@ -135,13 +171,4 @@ def get_stn_metadata(fname=None):
     return md
 
 
-def add_metadata(df, md):
-    md = md.set_index('station')
-    stn_ids = df['station'].values
-    md1 = md.loc[stn_ids, ['lat','lon','elev','name']]
-    df['lat']  = md1['lat'].values
-    df['lon']  = md1['lon'].values
-    df['elev'] = md1['elev'].values
-    df['name'] = md1['name'].values
-    df = df.replace(-999.0, np.nan)
-    return df
+
