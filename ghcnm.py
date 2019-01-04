@@ -28,7 +28,47 @@ import pandas as pd
 missing_id = '-9999'
 
 
-def create_DataFrame(data_file, country_codes_file=None):
+def get_stn_metadata(meta_fname):
+
+    ### Sanity Checks
+    if (meta_fname.endswith('.inv') == False):
+        raise ValueError('filename does not look correct')
+    version = meta_fname.split('/')[-1].split('.')[2]
+    if (version != 'v3'):
+        raise ValueError('This filename appears to be for GHCN-M '+version+ \
+                                    '. This has only been tested for v3')
+
+    df = pd.read_fwf(meta_fname, colspecs=[(0,3), (0,12), (13,21), (23,31), 
+                                                (31,38), (38,69)], 
+                        names=['country_codes','station',
+                                'lat','lon','elev','name'])
+
+    df['country'] = country_name_from_code(df['country_codes'])
+
+    df = df.drop(columns=['country_codes'])
+
+    return df
+
+
+def country_name_from_code(country_codes, country_codes_file=None):
+    ### Convert country-codes to country-names
+    if country_codes_file == None:
+        url = 'ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/v3/country-codes'
+        country_codes_file = url
+    cc = pd.read_fwf(country_codes_file, widths=[4,45], 
+                                                names=['Code','Name'])
+    cc = cc.set_index('Code')
+    country_names = cc.loc[country_codes,'Name'].values
+    return country_names
+
+
+def extract_countries(df, country_names):
+    country_names = map(str.upper, country_names)
+    df = df.loc[df['country'].isin(country_names)]
+    return df
+
+
+def get_data(data_file, my_stns):
 
     ### Sanity Checks
     if (data_file.endswith('.dat') == False):
@@ -38,8 +78,13 @@ def create_DataFrame(data_file, country_codes_file=None):
         raise ValueError('This filename appears to be for GHCN-M '+version+ \
                                     '. This has only been tested for v3')
 
+    ### identify lines to read
+    line_stns = pd.read_fwf(data_file, colspecs=[(0,11)], names=['station'])
+    line_stns_filtered = line_stns.loc[line_stns['station'].isin(my_stns['station'])]
+
     ### read all data
     lines = np.genfromtxt(data_file, delimiter='\n', dtype='str')
+    lines = lines[line_stns_filtered.index]
     nlines    = len(lines)
     linewidth = lines.dtype.itemsize
 
@@ -89,15 +134,16 @@ def create_DataFrame(data_file, country_codes_file=None):
 
             i = i + 1 ### interate by line and by month
 
-    country_names = country_name_from_code(country_codes, \
-                            country_codes_file=country_codes_file)
+    stn_id = np.array(stn_id).astype(int)
 
-    ### Default: convert to Pandas DataFrame
-    df = pd.DataFrame(columns=['country', 'station', 'year', 
-                                'month', 'variable', 'value',
-                                'dmflag', 'qcflag', 'dsflag'])
-    df['country']  = country_names
+    ### Convert to Pandas DataFrame
+    df = pd.DataFrame()
+    df['country']  = stn_id # these will be replaced (see below)
+    df['name']     = stn_id #
     df['station']  = stn_id
+    df['lat']      = stn_id #
+    df['lon']      = stn_id #
+    df['elev']     = stn_id #
     df['year']     = year
     df['month']    = month
     df['variable'] = element
@@ -105,99 +151,14 @@ def create_DataFrame(data_file, country_codes_file=None):
     df['dmflag']   = dmflag
     df['qcflag']   = qcflag
     df['dsflag']   = dsflag
-    df = df.replace(-9999.00, np.nan)
+    df = df.replace( float(missing_id), np.nan )
+
+    ### add metadata (by replacing temporarily stored station ids)
+    for index, row in my_stns.iterrows():
+        df = df.replace({'country': row['station']}, row['country'])
+        df = df.replace({'name':    row['station']}, row['name']   )
+        df = df.replace({'lon':     row['station']}, row['lon']    )
+        df = df.replace({'lat':     row['station']}, row['lat']    )
+        df = df.replace({'elev':    row['station']}, row['elev']   )
 
     return df
-
-
-def extract_countries(df, country_names):
-    country_names = map(str.upper, country_names)
-    df = df.loc[df['country'].isin(country_names)]
-    return df
-
-
-def country_name_from_code(country_codes, country_codes_file=None):
-    ### Convert country-codes to country-names
-    if country_codes_file == None:
-        url = 'ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/v3/country-codes'
-        country_codes_file = url
-    cc = pd.read_fwf(country_codes_file, widths=[4,45], 
-                                                names=['Code','Name'])
-    cc = cc.set_index('Code')
-    country_names = cc.loc[country_codes,'Name'].values
-    return country_names
-
-
-def add_metadata(df, meta_fname):
-    md = pd.read_fwf(meta_fname, colspecs=[(0,12), (13,21), (23,31), 
-                                                (31,38), (38,69)], 
-                        names=['station','lat','lon','elev','name'])
-    md = md.set_index('station')
-    stn_ids = df['station'].values.astype(int)
-    md1 = md.loc[stn_ids, ['lat','lon','elev']]
-    df['lat']  = md1['lat'].values
-    df['lon']  = md1['lon'].values
-    df['elev'] = md1['elev'].values
-    df = df.replace(-999.0, np.nan)
-    return df
-
-
-def create_cube(data, stn_id, lat, lon, stn_elev, name):
-
-    ### using http://scitools.org.uk/iris/
-    import iris
-    from iris.coords import DimCoord, AuxCoord
-    from cf_units import Unit
-    from datetime import datetime
-
-    index = np.where( (data['station'] == stn_id) & (data['year'] >= 1900) )[0]
-
-    if len(index) == 0: 
-        print("No records >1900, returning None", "Station ID:", stn_id)
-        return None
-
-    data = data[index]
-    ntimes = len(data)
-    years  = data['year']
-    months = data['month']
-
-    dt0 = datetime(year=1900, month=1, day=1)
-    dt0_str = dt0.strftime('%Y-%m-%d')
-
-    if (len(np.unique(data['element'])) == 1):
-        name_str = data['element'][0]
-
-    cube = iris.cube.Cube(np.zeros((ntimes)), long_name=name_str, units="K")
-     
-    time = np.zeros(ntimes)
-    for i in range(0, ntimes):
-        dt = datetime(year=years[i], month=months[i], day=1)
-        time[i] = (dt - dt0).days
-
-    ### define time dimension
-    time_coord = DimCoord(time, "time", units=Unit("days since "+dt0_str, 
-                                                calendar='gregorian'))
-    cube.add_dim_coord(time_coord, 0)
-
-    ### add lat, lon, elevation as scalar coords
-    cube.add_aux_coord(AuxCoord(lat,      long_name='latitude',  
-                                                    units='degrees')) 
-    cube.add_aux_coord(AuxCoord(lon,      long_name='longitude',
-                                                     units='degrees'))
-    cube.add_aux_coord(AuxCoord(stn_elev, long_name='elevation',
-                                                     units='m'))
-
-    #### add station ID within attributes
-    cube.attributes = {
-                        'StationID': stn_id,
-                        'StationName': '_'.join(name.split())
-                        }
-
-    ### insert data into cube
-    degreesC  = data['value']
-    kelvin    = degreesC
-    ind = np.where(degreesC != np.float(missing_id) )[0]
-    kelvin[ind] = kelvin[ind] + 273.15
-    cube.data = kelvin
-
-    return cube
