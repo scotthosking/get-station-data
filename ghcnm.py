@@ -38,7 +38,7 @@ def get_stn_metadata(meta_fname):
         raise ValueError('This filename appears to be for GHCN-M '+version+ \
                                     '. This has only been tested for v3')
 
-    df = pd.read_fwf(meta_fname, colspecs=[(0,3), (0,12), (13,21), (23,31), 
+    df = pd.read_fwf(meta_fname, colspecs=[(0,3), (0,12), (13,21), (21,31), 
                                                 (31,38), (38,69)], 
                         names=['country_codes','station',
                                 'lat','lon','elev','name'])
