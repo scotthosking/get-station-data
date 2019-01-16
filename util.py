@@ -19,7 +19,9 @@ def nearest_stn(df, my_x, my_y, n_neighbours=1):
     tree = spatial.KDTree(list(zip(x, y)))
     d, i = tree.query( [(my_x, my_y)], k=n_neighbours )
 
-    df1 = df.loc[i[0]]
+    if i.ndim == 1: index = i
+    if i.ndim == 2: index = i[0]
+    df1 = df.loc[index]
 
     return df1
 
