@@ -20,5 +20,15 @@ my_stns = ghcnm.extract_countries(stn_md, country_names)
 ### Get all available data for all specified stations 
 df = ghcnm.get_data(data_fname, my_stns)
 
+print(np.unique(df['name']))
+
+### Remove unneeded whitespace from station names
+df['name'] = [ ' '.join(name.split()) for name in df['name']]
+
+### Add year fraction to df
+years         = df['year']
+months        = df['month']
+year_fraction = df['year'] + (df['month'] / 12.)
+
 ### Save to a CSV file
 df.to_csv('UK_weather_station_data_ghcnm.csv', index=False)
