@@ -4,5 +4,5 @@ A set of Python tools to make it easier to work with station data from the Globa
 
 See Examples:
 
-* [Get daily data](https://github.com/scott-hosking/get_station_data/blob/master/Examples/ghcn_daily_data.ipynb)
-* [Get monthly data](https://github.com/scott-hosking/get_station_data/blob/master/Examples/ghcn_monthly_data.ipynb)
+* [Get daily data](https://nbviewer.jupyter.org/github/scott-hosking/get_station_data/blob/master/Examples/ghcn_daily_data.ipynb)
+* [Get monthly data](https://nbviewer.jupyter.org/github/scott-hosking/get_station_data/blob/master/Examples/ghcn_monthly_data.ipynb)
