@@ -1,0 +1,2 @@
+wget ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/v3/ghcnm.tavg.latest.qca.tar.gz
+tar -xf ghcnm.tavg.latest.qca.tar.gz
