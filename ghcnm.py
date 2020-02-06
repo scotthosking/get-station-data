@@ -2,7 +2,7 @@
 
 GHCNM.py makes it easier to work with station data from 
 [Global Historical Climatology Network Monthly (GHCNM) 
-Version 3](https://www.ncdc.noaa.gov/ghcnm/v3.php).
+Version 4](https://www.ncdc.noaa.gov/ghcn-monthly).
 
 What can ghcnm.py do?
 Extract station data from the GHCN-M dat file and provide the user with 
@@ -10,7 +10,7 @@ a labelled Pandas DataFrame with relevent metadata.  This makes it easy
 and fast to filter by station, country, or by years etc
 
 
-GHCNM README: ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/v3/README
+GHCNM README: https://www1.ncdc.noaa.gov/pub/data/ghcn/v4/readme.txt
 
 
 ghcnm.py
