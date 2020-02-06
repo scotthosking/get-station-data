@@ -18,6 +18,7 @@ ghcnm.py
 
 Author: Dr Scott Hosking (British Antarctic Survey)
 Creation Date:   16th August 2016 
+      updates:   6th February 2020 (move to v4 of GHCN-monthly data)
 
 '''
 
@@ -34,11 +35,11 @@ def get_stn_metadata(meta_fname):
     if (meta_fname.endswith('.inv') == False):
         raise ValueError('filename does not look correct')
     version = meta_fname.split('/')[-1].split('.')[2]
-    if (version != 'v3'):
+    if (version != 'v4'):
         raise ValueError('This filename appears to be for GHCN-M '+version+ \
-                                    '. This has only been tested for v3')
+                                    '. This has only been tested for v4')
 
-    df = pd.read_fwf(meta_fname, colspecs=[(0,3), (0,12), (12,21), (21,31), 
+    df = pd.read_fwf(meta_fname, colspecs=[(0,2), (0,12), (12,21), (21,31), 
                                                 (31,38), (38,69)], 
                         names=['country_codes','station',
                                 'lat','lon','elev','name'])
@@ -51,114 +52,85 @@ def get_stn_metadata(meta_fname):
 
 
 def country_name_from_code(country_codes, country_codes_file=None):
-    ### Convert country-codes to country-names
+    '''
+    Convert country-codes to country-names
+    https://www1.ncdc.noaa.gov/pub/data/ghcn/v4/ghcnm-countries.txt
+    '''
     if country_codes_file == None:
-        url = 'ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/v3/country-codes'
-        country_codes_file = url
-    cc = pd.read_fwf(country_codes_file, widths=[4,45], 
+        country_codes_file = 'ghcnm-countries.txt'
+    cc = pd.read_fwf(country_codes_file, widths=[3,45], 
                                                 names=['Code','Name'])
     cc = cc.set_index('Code')
     country_names = cc.loc[country_codes,'Name'].values
     return country_names
 
 
-def extract_countries(df, country_names):
-    country_names = map(str.upper, country_names)
-    df = df.loc[df['country'].isin(country_names)]
-    return df
+def get_data(data_fname, my_stns):
 
-
-def get_data(data_file, my_stns):
-
-    ### Sanity Checks
-    if (data_file.endswith('.dat') == False):
+    ##############################
+    # Sanity Checks
+    ##############################
+    if (data_fname.endswith('.dat') == False):
         raise ValueError('filename does not look correct')
-    version = data_file.split('/')[-1].split('.')[2]
-    if (version != 'v3'):
+    version = data_fname.split('/')[-1].split('.')[2]
+    if (version != 'v4'):
         raise ValueError('This filename appears to be for GHCN-M '+version+ \
-                                    '. This has only been tested for v3')
+                                    '. This has only been tested for v4')
 
-    ### identify lines to read
-    line_stns = pd.read_fwf(data_file, colspecs=[(0,11)], names=['station'])
-    line_stns_filtered = line_stns.loc[line_stns['station'].isin(my_stns['station'])]
+    ##############################
+    # read in whole data file
+    ##############################
+    colspecs = [(0,2),(0,11),(11,15),(15,19)]      
+    names    = ['country_code','station','year','variable']
 
-    ### read all data
-    lines = np.genfromtxt(data_file, delimiter='\n', dtype='str')
-    lines = lines[line_stns_filtered.index]
-    nlines    = len(lines)
-    linewidth = lines.dtype.itemsize
+    i = 19
+    for m in range(1,13):
 
-    ### initialise arrays
-    country_codes = np.zeros( nlines*12 ).astype(int)
-    stn_id  = [] # np.chararray(nlines*12, itemsize=11)
-    year    = np.zeros( nlines*12 ).astype(int)
-    month   = np.zeros( nlines*12 ).astype(int)
-    element = [] # np.chararray(nlines*12, itemsize=4)
-    value   = np.zeros( nlines*12 )
-    dmflag  = [] # np.chararray( nlines*12, itemsize=1)
-    qcflag  = [] # np.chararray( nlines*12, itemsize=1)
-    dsflag  = [] # np.chararray( nlines*12, itemsize=1)
+        mon = str(m)
+        colspecs_tmp = [(i,i+5),     (i+5,i+6),    (i+6,i+7),    (i+7,i+8)   ]
+        names_tmp    = ['VALUE'+mon, 'DMFLAG'+mon, 'QCFLAG'+mon, 'DSFLAG'+mon]
 
-    ### Loop through all lines in input file
-    i = 0 ### start iteration from zero
+        for j in range(0,4):
+            colspecs.append(colspecs_tmp[j]) 
+            names.append(names_tmp[j])
 
-    for line_tmp in lines:
+        i = i+8
 
-        ### return a string of the correct width, left-justified
-        line = line_tmp.ljust(linewidth)
+    df = pd.read_fwf(data_fname, colspecs=colspecs, names=names)        
 
-        ### extract values from original line
-        ### each new index (i) represents a different month for 
-        ### this line (i.e., year and station)
-        for m in range(0,12):
+    ##############################
+    # filter rows based on my_stns
+    ##############################
+    df = df[df['station'].isin(my_stns.station.values).values]
 
-            stn_id.append( line[0:11] )
-            country_codes[i] = line[0:3]
-            year[i]    = line[11:15]
-            month[i]   = m+1
-            element.append( line[15:19] )
+    ##############################
+    # Add in metadata
+    ##############################
 
-            ### get column positions for monthly data
-            cols = np.array([19,24,25,26]) + (8*m)
-        
-            val_tmp  = line[ cols[0]:cols[1] ]
+    for col in ['lat','lon','elev','name','country']:
+        df[col] = '-9999' # to do!!
+    
+    ##############################
+    # Reformat dataframe to create monthly data (each row is a month)
+    ############################## 
+    df_m = pd.DataFrame(columns=['country_code','station','lat','lon','elev','name','country','variable','year','value','dmflag','qcflag','dsflag'])
 
-            if (val_tmp == missing_id ): 
-                value[i] = val_tmp
-            else:
-                value[i] = np.float(val_tmp) / 100.
-            
-            dmflag.append( line[ cols[1] ] )
-            qcflag.append( line[ cols[2] ] )
-            dsflag.append( line[ cols[3] ] )
+    for m in range(1,13):
+        df_tmp = df[['country_code','station','lat','lon','elev','name','country',
+                        'variable','year','VALUE'+str(m), 'DMFLAG'+str(m), 'QCFLAG'+str(m), 'DSFLAG'+str(m)]]
+        df_tmp['date'] = df_tmp['year']*100.+m
+        df_tmp = df_tmp.rename(columns={'VALUE'+str(m) :'value' ,
+                               'DMFLAG'+str(m):'dmflag',
+                               'QCFLAG'+str(m):'qcflag',
+                               'DSFLAG'+str(m):'dsflag'
+                              })
+        df_m = pd.concat( [df_m, df_tmp] )
 
-            i = i + 1 ### interate by line and by month
-
-    stn_id = np.array(stn_id).astype(int)
-
-    ### Convert to Pandas DataFrame
-    df = pd.DataFrame()
-    df['country']  = stn_id # these will be replaced (see below)
-    df['name']     = stn_id #
-    df['station']  = stn_id
-    df['lat']      = stn_id #
-    df['lon']      = stn_id #
-    df['elev']     = stn_id #
-    df['year']     = year
-    df['month']    = month
-    df['variable'] = element
-    df['value']    = value
-    df['dmflag']   = dmflag
-    df['qcflag']   = qcflag
-    df['dsflag']   = dsflag
-    df = df.replace( float(missing_id), np.nan )
-
-    ### add metadata (by replacing temporarily stored station ids)
-    for index, row in my_stns.iterrows():
-        df = df.replace({'country': row['station']}, row['country'])
-        df = df.replace({'name':    row['station']}, row['name']   )
-        df = df.replace({'lon':     row['station']}, row['lon']    )
-        df = df.replace({'lat':     row['station']}, row['lat']    )
-        df = df.replace({'elev':    row['station']}, row['elev']   )
-
-    return df
+    df_m = df_m[['country_code','station','variable','lat','lon','elev','name','country','date','value','dmflag','qcflag','dsflag']]
+    df_m['date'] = df_m['date'].astype(int)
+    df_m = df_m.sort_values(by=['station','date'])        
+    
+    if 'ghcnm.tavg.' in data_fname:
+        df_m['value'] = df_m['value'] / 100.
+    
+    return df_m
