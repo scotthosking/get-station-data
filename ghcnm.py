@@ -130,6 +130,6 @@ def get_data(data_fname, my_stns):
     if 'ghcnm.tavg.' in data_fname:
         df_m['value'] = df_m['value'] / 100.
         df_m = df_m.rename(columns={'value':'tavg'})
-        df_m = df_m.drop(columns=['variable'])
+        df_m = df_m.drop(columns=['variable','country_code'])
 
-    return df_m
+    return df_m.reset_index(drop=True)
