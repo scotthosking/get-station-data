@@ -1,20 +1,12 @@
 
 *.DS_Store
 *.pyc
-
 *.csv
-Examples/Egypt_surrounding_ghcnm.csv
 *.dly
-
-
-
-Examples/.ipynb_checkpoints/ghcn_daily_data-checkpoint.ipynb
-Examples/.ipynb_checkpoints/ghcn_monthly_data_Africa-checkpoint.ipynb
-Examples/.ipynb_checkpoints/ghcn_monthly_data-checkpoint.ipynb
-Examples/.ipynb_checkpoints/weather_station_regression-checkpoint.ipynb
-Examples/London_5stns_GHCN-D.csv
-*.inv
-ghcnm-countries.txt
-*.gz
-.ipynb_checkpoints/*
 *.dat
+*.inv
+*.gz
+Examples/.ipynb_checkpoints/*
+.ipynb_checkpoints/*
+ghcnm-countries.txt
+get_station_data.code-workspace

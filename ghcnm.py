@@ -41,17 +41,14 @@ def get_stn_metadata(meta_fname):
 
     df = pd.read_fwf(meta_fname, colspecs=[(0,2), (0,12), (12,21), (21,31), 
                                                 (31,38), (38,69)], 
-                        names=['country_codes','station',
+                        names=['country_code','station',
                                 'lat','lon','elev','name'])
-
-    df['country'] = country_name_from_code(df['country_codes'])
-
-    df = df.drop(columns=['country_codes'])
-
+    df = add_country_name(df)
+    df = df.drop(columns=['country_code'])
     return df
 
 
-def country_name_from_code(country_codes, country_codes_file=None):
+def add_country_name(df, country_codes_file=None):
     '''
     Convert country-codes to country-names
     https://www1.ncdc.noaa.gov/pub/data/ghcn/v4/ghcnm-countries.txt
@@ -59,10 +56,9 @@ def country_name_from_code(country_codes, country_codes_file=None):
     if country_codes_file == None:
         country_codes_file = 'ghcnm-countries.txt'
     cc = pd.read_fwf(country_codes_file, widths=[3,45], 
-                                                names=['Code','Name'])
-    cc = cc.set_index('Code')
-    country_names = cc.loc[country_codes,'Name'].values
-    return country_names
+                        names=['country_code','country'])
+    df = pd.merge(df, cc, on='country_code', how='outer')
+    return df
 
 
 def get_data(data_fname, my_stns):
@@ -106,31 +102,34 @@ def get_data(data_fname, my_stns):
     ##############################
     # Add in metadata
     ##############################
-
-    for col in ['lat','lon','elev','name','country']:
-        df[col] = '-9999' # to do!!
+    df = pd.merge(df, my_stns, on='station', how='outer') # needs testing!!
     
     ##############################
     # Reformat dataframe to create monthly data (each row is a month)
     ############################## 
-    df_m = pd.DataFrame(columns=['country_code','station','lat','lon','elev','name','country','variable','year','value','dmflag','qcflag','dsflag'])
+    df_m = pd.DataFrame(columns=['country_code','station','lat','lon','elev','name','country',
+                                    'variable','year','value','dmflag','qcflag','dsflag'])
 
     for m in range(1,13):
         df_tmp = df[['country_code','station','lat','lon','elev','name','country',
                         'variable','year','VALUE'+str(m), 'DMFLAG'+str(m), 'QCFLAG'+str(m), 'DSFLAG'+str(m)]]
-        df_tmp['date'] = df_tmp['year']*100.+m
+        df_tmp['year'] = (df_tmp['year'] * 100.) + m # (e.g., 1982 --> 198204)
         df_tmp = df_tmp.rename(columns={'VALUE'+str(m) :'value' ,
                                'DMFLAG'+str(m):'dmflag',
                                'QCFLAG'+str(m):'qcflag',
-                               'DSFLAG'+str(m):'dsflag'
+                               'DSFLAG'+str(m):'dsflag',
+                               'year':'date'
                               })
         df_m = pd.concat( [df_m, df_tmp] )
 
-    df_m = df_m[['country_code','station','variable','lat','lon','elev','name','country','date','value','dmflag','qcflag','dsflag']]
+    df_m = df_m[['country_code','station','lat','lon','elev','name','country',
+                    'date','variable','value','dmflag','qcflag','dsflag']]
     df_m['date'] = df_m['date'].astype(int)
     df_m = df_m.sort_values(by=['station','date'])        
     
     if 'ghcnm.tavg.' in data_fname:
         df_m['value'] = df_m['value'] / 100.
-    
+        df_m = df_m.rename(columns={'value':'tavg'})
+        df_m = df_m.drop(columns=['variable'])
+
     return df_m
