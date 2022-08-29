@@ -3,7 +3,7 @@
 Extract, process and save data from the
 Global Historical Climatology Network Daily (GHCND) Version 3.22
 
-GHCND README: ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/readme.txt
+GHCND README: https://www.ncei.noaa.gov/pub/data/ghcn/daily/readme.txt
 
 
 ghcnd.py
@@ -11,6 +11,8 @@ ghcnd.py
 
 Author: Dr Scott Hosking (British Antarctic Survey)
 Date:   28th February 2017
+
+Updated: 29th August 2022 - add new data source root location (https://www.ncei.noaa.gov/)
 
 '''
 
@@ -34,7 +36,8 @@ def get_data(my_stns):
         elev    = stn_md1['elev'].values[0]
         name    = stn_md1['name'].values[0]
 
-        file = 'ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/all/'+stn_id+'.dly'
+        # file = 'ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/all/'+stn_id+'.dly'
+        file = 'https://www.ncei.noaa.gov/pub/data/ghcn/daily/all/'+stn_id+'.dly'
         df   = _create_DataFrame_1stn(file)
 
         if len(pd.unique(df['station'])) == 1:
