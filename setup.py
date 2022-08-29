@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='getGHCN',
-    version='0.01',
+    version='0.1',
     author='Scott Hosking',
     author_email='jask@bas.ac.uk',
     packages=find_packages(),
