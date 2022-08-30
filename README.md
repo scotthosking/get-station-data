@@ -13,6 +13,29 @@ The code can be downloaded from the [_get_station_data_](https://github.com/scot
 * [Get daily data](https://scotthosking.com/notebooks/ghcn_daily/)
 * [Get monthly data](https://scotthosking.com/notebooks/ghcn_monthly/) -->
 
+## Installation
+
+<!-- 1. **Install scivision via [PyPi](https://pypi.org/project/scivision/)**: which tends to be the most user-friendly option:
+
+    ```bash
+    pip install scivision
+    ``` -->
+
+1. **Install from the source code**:
+
+    * Clone scivision source code:
+
+    ```bash
+    git clone https://github.com/scotthosking/get-station-data.git 
+    ```
+
+    * Install along with its dependencies:
+
+    ```bash
+    cd /path/to/my/get-station-data
+    pip install -v -e .
+    ```
+
 ## Notebook
 
 ```python
@@ -42,19 +65,6 @@ my_stns
 
 
 <div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
 <table border="1" class="dataframe">
   <thead>
     <tr style="text-align: right;">
@@ -126,19 +136,6 @@ df.head()
 
 
 <div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
 <table border="1" class="dataframe">
   <thead>
     <tr style="text-align: right;">
@@ -253,7 +250,6 @@ df.head()
 
 ### Filter data for, e.g., a single variable
 
-
 ```python
 var = 'PRCP'   # precipitation
 df = df[ df['element'] == var ]
@@ -269,19 +265,6 @@ df.head()
 
 
 <div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
 <table border="1" class="dataframe">
   <thead>
     <tr style="text-align: right;">
@@ -397,19 +380,6 @@ df.drop(columns=['mflag','qflag','sflag']).tail(n=10)
 
 
 <div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
 <table border="1" class="dataframe">
   <thead>
     <tr style="text-align: right;">
@@ -565,44 +535,28 @@ df.drop(columns=['mflag','qflag','sflag']).tail(n=10)
 
 ### Save to file
 
-
 ```python
 df.to_csv('London_5stns_GHCN-D.csv', index=False)
 ```
 
 ### Plot histogram of all data
 
-
 ```python
 df['PRCP'].plot.hist(bins=40)
 ```
-
-
-
-
     <matplotlib.axes._subplots.AxesSubplot at 0x11ae36898>
-
-
-
 
 ![png](http://scotthosking.com/images/notebooks/ghcn_daily_data/output_14_1.png)
 
 
 ### Plot time series for one station
 
-
 ```python
 heathrow = df[ df['name'] == 'HEATHROW' ]
 heathrow['PRCP'].plot()
 ```
 
-
-
-
     <matplotlib.axes._subplots.AxesSubplot at 0x81f0d7240>
-
-
-
 
 ![png](http://scotthosking.com/images/notebooks/ghcn_daily_data/output_16_1.png)
 
