@@ -14,7 +14,7 @@ with open("requirements.txt") as f:
             requirements.append(stripped)
 
 setup(
-    name='get-weather-data',
+    name='get-station-data',
     version='0.1',
     author='J. Scott Hosking',
     author_email='jask@bas.ac.uk',
