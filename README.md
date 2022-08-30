@@ -4,6 +4,8 @@
 
 A set of Python tools to make it easier to extract weather station data (e.g., temperature, precipitation) from the [Global Historical Climatology Network - Daily (GHCND)](https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily)
 
+> *"The Global Historical Climatology Network daily (GHCNd) is an integrated database of daily climate summaries from land surface stations across the globe. GHCNd is made up of daily climate records from numerous sources that have been integrated and subjected to a common suite of quality assurance reviews. GHCNd contains records from more than 100,000 stations in 180 countries and territories. NCEI provides numerous daily variables, including maximum and minimum temperature, total daily precipitation, snowfall, and snow depth. About half the stations only report precipitation. Both record length and period of record vary by station and cover intervals ranging from less than a year to more than 175 years."* [source](https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily)
+
 More information on the data can be found [here](https://www.ncei.noaa.gov/pub/data/ghcn/daily/readme.txt)
 
 <!-- See Examples:
