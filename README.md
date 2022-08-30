@@ -13,7 +13,7 @@ More information on the data can be found [here](https://www.ncei.noaa.gov/pub/d
 
 ## Installation
 
-<!-- 1. **Install scivision via [PyPi](https://pypi.org/project/get-station-data/)**: which tends to be the most user-friendly option:
+<!-- 1. **Install the package via [PyPi](https://pypi.org/project/get-station-data/)**: which tends to be the most user-friendly option:
 
     ```bash
     pip install get-station-data
@@ -21,7 +21,7 @@ More information on the data can be found [here](https://www.ncei.noaa.gov/pub/d
 
 1. **Install from the source code**:
 
-* Clone scivision source code:
+* Clone the repository source code:
 
 ```bash
 git clone https://github.com/scotthosking/get-station-data.git 
