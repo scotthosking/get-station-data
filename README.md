@@ -2,11 +2,9 @@
 
 <!-- [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/scotthosking/get-station-data/master?filepath=ghcn_monthly_data.ipynb) -->
 
-A set of Python tools to make it easier to extract weather station data (e.g., temperature, precipitation) from the [Global Historical Climatology Network - Daily (GHCND)](https://www.ncdc.noaa.gov/ghcn-daily-description)
+A set of Python tools to make it easier to extract weather station data (e.g., temperature, precipitation) from the [Global Historical Climatology Network - Daily (GHCND)](https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily)
 
-More information on the data can be found [here](https://www1.ncdc.noaa.gov/pub/data/ghcn/daily/readme.txt)
-
-The code can be downloaded from the [_get_station_data_](https://github.com/scotthosking/get-station-data) github repository
+More information on the data can be found [here](https://www.ncei.noaa.gov/pub/data/ghcn/daily/readme.txt)
 
 <!-- See Examples:
 
@@ -15,28 +13,28 @@ The code can be downloaded from the [_get_station_data_](https://github.com/scot
 
 ## Installation
 
-<!-- 1. **Install scivision via [PyPi](https://pypi.org/project/scivision/)**: which tends to be the most user-friendly option:
+<!-- 1. **Install scivision via [PyPi](https://pypi.org/project/get-station-data/)**: which tends to be the most user-friendly option:
 
     ```bash
-    pip install scivision
+    pip install get-station-data
     ``` -->
 
 1. **Install from the source code**:
 
-    * Clone scivision source code:
+* Clone scivision source code:
 
-    ```bash
-    git clone https://github.com/scotthosking/get-station-data.git 
-    ```
+```bash
+git clone https://github.com/scotthosking/get-station-data.git 
+```
 
-    * Install along with its dependencies:
+* Install along with its dependencies:
 
-    ```bash
-    cd /path/to/my/get-station-data
-    pip install -v -e .
-    ```
+```bash
+cd /path/to/my/get-station-data
+pip install -v -e .
+```
 
-## Notebook
+## Worked through example
 
 ```python
 from get_station_data import ghcnd
