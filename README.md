@@ -1,4 +1,4 @@
-# Get daily average weather station data (Global)
+# Get daily weather station data (Global)
 
 <!-- [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/scotthosking/get-station-data/master?filepath=ghcn_monthly_data.ipynb) -->
 
