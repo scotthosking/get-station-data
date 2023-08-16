@@ -23,8 +23,22 @@ import multiprocessing
 from functools import partial
 import tqdm
 
+DIV10_ELEMENT_TYPES = [
+    "PRCP",
+    "TMAX",
+    "TMIN",
+    "AWND",
+    "EVAP",
+    "MDEV",
+    "MDPR",
+    "MDTN",
+    "MDTX",
+    "MNPN",
+    "MXPN",
+]
 
-def process_stn(stn_id, stn_md, include_flags=True):
+
+def process_stn(stn_id, stn_md, include_flags=True, element_types=None):
     stn_md1 = stn_md[stn_md["station"] == stn_id]
     lat = stn_md1["lat"].values[0]
     lon = stn_md1["lon"].values[0]
@@ -32,21 +46,27 @@ def process_stn(stn_id, stn_md, include_flags=True):
     name = stn_md1["name"].values[0]
 
     # file = 'ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/all/' + stn_id + '.dly'
-    file = "https://www.ncei.noaa.gov/pub/data/ghcn/daily/all/" + stn_id + ".dly"
-    df = _create_DataFrame_1stn(file, include_flags=include_flags)
+    filename = "https://www.ncei.noaa.gov/pub/data/ghcn/daily/all/" + stn_id + ".dly"
+    df = _create_DataFrame_1stn(filename, include_flags, element_types)
 
     if len(pd.unique(df["station"])) == 1:
         df["lon"] = lon
         df["lat"] = lat
         df["elev"] = elev
         df["name"] = name
+    # handle empty dfs created by filtering element types
+    elif len(pd.unique(df["station"])) == 0:
+        df["lon"] = []
+        df["lat"] = []
+        df["elev"] = []
+        df["name"] = []
     else:
         raise ValueError("more than one station ID in file")
 
     return df
 
 
-def get_data(my_stns, include_flags=True):
+def get_data(my_stns, include_flags=True, element_types=None):
     stn_md = get_stn_metadata()
 
     # Number of processes to use, you can adjust this based on your system's capabilities
@@ -54,19 +74,19 @@ def get_data(my_stns, include_flags=True):
 
     with multiprocessing.Pool(processes=num_processes) as pool:
         partial_process_stn = partial(
-            process_stn, stn_md=stn_md, include_flags=include_flags
+            process_stn, stn_md=stn_md, include_flags=include_flags, element_types=element_types
         )
         dfs = list(
             tqdm.tqdm(pool.imap(partial_process_stn, pd.unique(my_stns["station"])))
         )
 
     df = pd.concat(dfs)
-    df = df.replace(-999.0, np.nan)
+    # df = df.replace(-999.0, np.nan)
 
-    return df
+    return df.query('element.isin(@element_types)')
 
 
-def _create_DataFrame_1stn(filename, verbose=False, include_flags=True):
+def _create_DataFrame_1stn(filename, include_flags, element_types, verbose=False):
     raw_array = pd.Series(np.genfromtxt(filename, delimiter="\n", dtype="str"))
 
     out_dict = {}
@@ -117,21 +137,7 @@ def _create_DataFrame_1stn(filename, verbose=False, include_flags=True):
     out_df["day"] = out_df.day.astype(int) + 1
     out_df["date"] = pd.to_datetime(out_df[["year", "month", "day"]], errors="coerce")
     out_df.loc[
-        out_df.element.isin(
-            [
-                "PRCP",
-                "TMAX",
-                "TMIN",
-                "AWND",
-                "EVAP",
-                "MDEV",
-                "MDPR",
-                "MDTN",
-                "MDTX",
-                "MNPN",
-                "MXPN",
-            ]
-        ),
+        out_df.element.isin(DIV10_ELEMENT_TYPES),
         "value",
     ] /= 10
     out_df = (
@@ -142,8 +148,11 @@ def _create_DataFrame_1stn(filename, verbose=False, include_flags=True):
 
     if include_flags:
         out_df = out_df.fillna({"qflag": " ", "mflag": " ", "sflag": " "})
-
-    return out_df
+    
+    if element_types is None:
+        return out_df
+    else:
+        return out_df.query('element.isin(@element_types)')
 
 
 def get_stn_metadata(fname=None):
