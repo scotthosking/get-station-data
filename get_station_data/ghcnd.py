@@ -19,6 +19,7 @@ Updated: 29th August 2022 - add new data source root location (https://www.ncei.
 import numpy as np
 import pandas as pd
 from datetime import datetime
+import tqdm 
 
 missing_id = '-9999'
 
@@ -28,7 +29,7 @@ def get_data(my_stns):
     stn_md = get_stn_metadata()
     dfs = []
 
-    for stn_id in pd.unique(my_stns['station']):
+    for stn_id in tqdm.tqdm(pd.unique(my_stns['station'])):
 
         stn_md1 = stn_md[ stn_md['station'] == stn_id ]
         lat     = stn_md1['lat'].values[0]
@@ -114,9 +115,9 @@ def _create_DataFrame_1stn(filename, verbose=False):
                 warnings.append(element_tmp+\
                         ' values have been divided by ten' + \
                         ' as specified by readme.txt')
-                value[i] = np.float(val_tmp) / 10.
+                value[i] = np.float64(val_tmp) / 10.
             else:
-                value[i] = np.float(val_tmp)
+                value[i] = np.float64(val_tmp)
             
             mflag.append(line[ cols[1] ])
             qflag.append(line[ cols[2] ])
