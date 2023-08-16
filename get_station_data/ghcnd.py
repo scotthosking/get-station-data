@@ -21,6 +21,7 @@ from datetime import datetime
 
 import multiprocessing
 from functools import partial
+from typing import Optional, List
 import tqdm
 
 
@@ -68,14 +69,34 @@ def process_stn(stn_id, stn_md, include_flags=True, element_types=None):
     return df
 
 
-def get_data(my_stns, include_flags=True, element_types=None):
+def get_data(
+    my_stns: pd.DataFrame,
+    include_flags: bool = True,
+    element_types: Optional[List[str]] = None,
+) -> pd.DataFrame:
+    """
+    Fetches GHCND data. 
+
+    Args:
+        my_stns (pd.DataFrame): Contains metadata for stations to fetch, with columns station, lat, lon, elev, name
+        include_flags (bool, optional): If true includes flags which give information about data collection. 
+                                        False gives significant (5x) speedup. See https://www.ncei.noaa.gov/pub/data/ghcn/daily/readme.txt for details. 
+                                        Defaults to True.
+        element_types (Optional[List[str]], optional): Only fetches element types in list, if None, fetches all. Defaults to None.
+
+    Returns:
+        pd.DataFrame: Station data. 
+    """
     stn_md = get_stn_metadata()
 
     num_processes = multiprocessing.cpu_count()
 
     with multiprocessing.Pool(processes=num_processes) as pool:
         partial_process_stn = partial(
-            process_stn, stn_md=stn_md, include_flags=include_flags, element_types=element_types
+            process_stn,
+            stn_md=stn_md,
+            include_flags=include_flags,
+            element_types=element_types,
         )
         dfs = list(
             tqdm.tqdm(pool.imap(partial_process_stn, pd.unique(my_stns["station"])))
@@ -83,7 +104,7 @@ def get_data(my_stns, include_flags=True, element_types=None):
 
     df = pd.concat(dfs)
 
-    return df.query('element.isin(@element_types)')
+    return df.query("element.isin(@element_types)")
 
 
 def _create_DataFrame_1stn(filename, include_flags, element_types, verbose=False):
@@ -144,11 +165,11 @@ def _create_DataFrame_1stn(filename, include_flags, element_types, verbose=False
 
     if include_flags:
         out_df = out_df.fillna({"qflag": " ", "mflag": " ", "sflag": " "})
-    
+
     if element_types is None:
         return out_df
     else:
-        return out_df.query('element.isin(@element_types)')
+        return out_df.query("element.isin(@element_types)")
 
 
 def get_stn_metadata(fname=None):
