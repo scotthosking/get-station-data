@@ -14,16 +14,20 @@ Date:   28th February 2017
 
 Updated: 29th August 2022 - add new data source root location (https://www.ncei.noaa.gov/)
 """
+from __future__ import annotations
+
+from joblib import Memory
+
+memory = Memory(".datacache", verbose=0)
+
+import multiprocessing
+from datetime import datetime
+from functools import partial
+from typing import List, Optional
 
 import numpy as np
 import pandas as pd
-from datetime import datetime
-
-import multiprocessing
-from functools import partial
-from typing import Optional, List
 import tqdm
-
 
 # These data fields need to be divided by 10
 DIV10_ELEMENT_TYPES = [
@@ -68,7 +72,7 @@ def process_stn(stn_id, stn_md, include_flags=True, element_types=None):
 
     return df
 
-
+@memory.cache
 def get_data(
     my_stns: pd.DataFrame,
     include_flags: bool = True,
@@ -80,13 +84,17 @@ def get_data(
     Args:
         my_stns (pd.DataFrame): Contains metadata for stations to fetch, with columns station, lat, lon, elev, name
         include_flags (bool, optional): If true includes flags which give information about data collection. 
-                                        False gives significant (5x) speedup. See https://www.ncei.noaa.gov/pub/data/ghcn/daily/readme.txt for details. 
+                                        False gives significant (5x) speedup. 
+                                        See https://www.ncei.noaa.gov/pub/data/ghcn/daily/readme.txt for details. 
                                         Defaults to True.
-        element_types (Optional[List[str]], optional): Only fetches element types in list, if None, fetches all. Defaults to None.
+        element_types (Optional[List[str]], optional): Only fetches element types in list, if None, fetches all. 
+                                                      Defaults to None.
 
     Returns:
         pd.DataFrame: Station data. 
     """
+    print("Downloading station data...")
+
     stn_md = get_stn_metadata()
 
     num_processes = multiprocessing.cpu_count()
@@ -99,13 +107,11 @@ def get_data(
             element_types=element_types,
         )
         dfs = list(
-            tqdm.tqdm(pool.imap(partial_process_stn, pd.unique(my_stns["station"])))
+            tqdm.tqdm(pool.imap(partial_process_stn, pd.unique(my_stns["station"])), total=len(my_stns))
         )
 
     df = pd.concat(dfs)
-
-    return df.query("element.isin(@element_types)")
-
+    return df
 
 def _create_DataFrame_1stn(filename, include_flags, element_types, verbose=False):
     raw_array = pd.Series(np.genfromtxt(filename, delimiter="\n", dtype="str"))
@@ -121,7 +127,7 @@ def _create_DataFrame_1stn(filename, include_flags, element_types, verbose=False
     if include_flags:
         names = ["value", "mflag", "qflag", "sflag"]
     else:
-        names = ["value", "mflag", "qflag", "sflag"]
+        names = ["value"]
     for i, n in enumerate(names):
         sub_dict = {}
         for d in range(31):
@@ -130,6 +136,7 @@ def _create_DataFrame_1stn(filename, include_flags, element_types, verbose=False
                 out_dict[d] = (
                     raw_array.str[idx[0] : idx[1]]
                     .replace("-9999", np.nan)
+                    .replace("", np.nan)
                     .astype(float)
                 )
             else:
@@ -171,7 +178,7 @@ def _create_DataFrame_1stn(filename, include_flags, element_types, verbose=False
     else:
         return out_df.query("element.isin(@element_types)")
 
-
+@memory.cache
 def get_stn_metadata(fname=None):
     url = "https://www1.ncdc.noaa.gov/pub/data/ghcn/daily/ghcnd-stations.txt"
     if fname == None:
