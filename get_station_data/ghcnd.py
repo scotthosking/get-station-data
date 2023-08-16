@@ -24,7 +24,7 @@ import tqdm
 missing_id = '-9999'
 
 
-def get_data(my_stns):
+def get_data(my_stns, include_flags=True):
 
     stn_md = get_stn_metadata()
     dfs = []
@@ -39,7 +39,7 @@ def get_data(my_stns):
 
         # file = 'ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/all/'+stn_id+'.dly'
         file = 'https://www.ncei.noaa.gov/pub/data/ghcn/daily/all/'+stn_id+'.dly'
-        df   = _create_DataFrame_1stn(file)
+        df   = _create_DataFrame_1stn(file, include_flags=include_flags)
 
         if len(pd.unique(df['station'])) == 1:
             df['lon']  = lon
@@ -60,109 +60,74 @@ def get_data(my_stns):
 
 
 
-def _create_DataFrame_1stn(filename, verbose=False):
+def _create_DataFrame_1stn(filename, verbose=False, include_flags=True):
+    raw_array = pd.Series(np.genfromtxt(filename, delimiter="\n", dtype="str"))
 
-    ### read all data
-    lines     = np.genfromtxt(filename, delimiter='\n', dtype='str')
-    nlines    = len(lines)
-    linewidth = lines.dtype.itemsize
+    out_dict = {}
+    out_dict["station"] = raw_array.str[0:11]
+    out_dict["year"] = raw_array.str[11:15].astype(int)
+    out_dict["month"] = raw_array.str[15:17].astype(int)
+    out_dict["element"] = raw_array.str[17:21]
 
-    ### initialise arrays & lists
-    year    = np.zeros( nlines*31 ).astype(int)
-    month   = np.zeros( nlines*31 ).astype(int)
-    day     = np.zeros( nlines*31 ).astype(int)
-    value   = np.zeros( nlines*31 )
-    stn_id  = []
-    element = []
-    mflag   = []
-    qflag   = []
-    sflag   = []
+    # TODO - Check this
+    dfs = []
 
-    ### Loop through all lines in input file
-    i = 0 ### start iteration from zero
-
-    warnings = []
-
-    for line_tmp in lines:
-
-        ### return a string of the correct width, left-justified
-        line = line_tmp.ljust(linewidth)
-
-        ### extract values from original line
-        ### each new index (i) represents a different day for this 
-        ### line (i.e., year and station)
-        for d in range(0,31):
-
-            stn_id.append(line[0:11])
-            year[i]    = line[11:15]
-            month[i]   = line[15:17]
-            day[i]     = d+1
-            element_tmp = line[17:21]
-            element.append(element_tmp)
-
-            ### get column positions for daily data
-            cols = np.array([21, 26, 27, 28]) + (8*d)
-        
-            val_tmp  = line[ cols[0]:cols[1] ]
-
-            if val_tmp == missing_id: 
-                value[i] = val_tmp
-            elif element_tmp in ['PRCP', 'TMAX', 'TMIN', 'AWND', 'EVAP', 
-                                'MDEV', 'MDPR', 'MDTN', 'MDTX', 
-                                'MNPN', 'MXPN']:
-                ### these are in tenths of a UNIT
-                ### (e.g., tenths of degrees C)
-                warnings.append(element_tmp+\
-                        ' values have been divided by ten' + \
-                        ' as specified by readme.txt')
-                value[i] = np.float64(val_tmp) / 10.
+    if include_flags:
+        names = ["value", "mflag", "qflag", "sflag"]
+    else: 
+        names = ["value", "mflag", "qflag", "sflag"]
+    for i, n in enumerate(names):
+        sub_dict = {}
+        for d in range(31):
+            idx = np.array([21, 26, 27, 28]) + (8 * d)
+            if n == "value":
+                out_dict[d] = (
+                    raw_array.str[idx[0] : idx[1]].replace("-9999", np.nan).astype(float)
+                )
             else:
-                value[i] = np.float64(val_tmp)
-            
-            mflag.append(line[ cols[1] ])
-            qflag.append(line[ cols[2] ])
-            sflag.append(line[ cols[3] ])
+                out_dict[d] = raw_array.str[idx[i]]
 
-            i = i + 1 ### interate by line and by day
+        df = pd.melt(
+            pd.DataFrame({**out_dict, **sub_dict}),
+            ["station", "year", "month", "element"],
+            value_vars=list(range(31)),
+            var_name="day",
+            value_name=n,
+        )
 
-    ### Print any warnings
-    warnings = np.unique(np.array(warnings))
-    if verbose ==True:
-        for w in warnings: print(w)
+        dfs.append(df)
 
-    ### Convert to Pandas DataFrame
-    df = pd.DataFrame(columns=['station', 'year', 'month', 'day',
-                                'element', 'value',
-                                'mflag', 'qflag', 'sflag'])
+    # df.columns[30:50
+    # type(df["mflag0"].iloc[0])
+    assert (
+        dfs[0][["station", "year", "month", "day", "element"]]
+        == dfs[1][["station", "year", "month", "day", "element"]]
+    ).all(axis=None)
+    assert (
+        dfs[2][["station", "year", "month", "day", "element"]]
+        == dfs[3][["station", "year", "month", "day", "element"]]
+    ).all(axis=None)
 
-    df['station'] = stn_id
-    df['year']    = year
-    df['month']   = month
-    df['day']     = day
-    df['element'] = element
-    df['value']   = value
-    df['mflag']   = mflag
-    df['qflag']   = qflag
-    df['sflag']   = sflag
+    out_df = dfs[0]
+    if include_flags:
+        for i in range(1, 4):
+            n = names[i]
+            out_df[n] = dfs[i][n]
 
-    df = df.replace(-9999.0, np.nan)
+    out_df["day"] = out_df.day.astype(int) + 1
+    out_df["date"] = pd.to_datetime(out_df[["year", "month", "day"]], errors="coerce")
+    out_df.loc[out_df.element.isin(['PRCP', 'TMAX', 'TMIN', 'AWND', 'EVAP', 
+                                    'MDEV', 'MDPR', 'MDTN', 'MDTX', 
+                                    'MNPN', 'MXPN']),  "value"] /= 10 
+    out_df = (
+        out_df.dropna(subset="date")
+        .sort_values(by=["station", "year", "month", "day", "element"])
+        .reset_index(drop=True))
 
-    ### Test validity of dates and add datetime column
-    dt = []
-    for index, row in df.iterrows():
-        try:
-            dt.append( datetime(row['year'], row['month'], row['day']) )
-        except ValueError:
-            # print('Date does not exist:'+\
-            #                     str(row['year'])+'-'+\
-            #                     str(row['month'])+'-'+\
-            #                     str(row['day']) )
-            dt.append( np.nan )
-
-    df['date'] = dt
-    df = df.dropna( subset=['date'] )
-
-    return df
+    if include_flags:
+        out_df = out_df.fillna({"qflag": " ", "mflag": " ", "sflag": " "})
+    
+    return out_df 
 
 
 def get_stn_metadata(fname=None):
