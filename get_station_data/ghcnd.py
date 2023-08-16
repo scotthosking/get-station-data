@@ -23,6 +23,8 @@ import multiprocessing
 from functools import partial
 import tqdm
 
+
+# These data fields need to be divided by 10
 DIV10_ELEMENT_TYPES = [
     "PRCP",
     "TMAX",
@@ -69,7 +71,6 @@ def process_stn(stn_id, stn_md, include_flags=True, element_types=None):
 def get_data(my_stns, include_flags=True, element_types=None):
     stn_md = get_stn_metadata()
 
-    # Number of processes to use, you can adjust this based on your system's capabilities
     num_processes = multiprocessing.cpu_count()
 
     with multiprocessing.Pool(processes=num_processes) as pool:
@@ -81,7 +82,6 @@ def get_data(my_stns, include_flags=True, element_types=None):
         )
 
     df = pd.concat(dfs)
-    # df = df.replace(-999.0, np.nan)
 
     return df.query('element.isin(@element_types)')
 
@@ -95,7 +95,6 @@ def _create_DataFrame_1stn(filename, include_flags, element_types, verbose=False
     out_dict["month"] = raw_array.str[15:17].astype(int)
     out_dict["element"] = raw_array.str[17:21]
 
-    # TODO - Check this
     dfs = []
 
     if include_flags:
@@ -124,9 +123,6 @@ def _create_DataFrame_1stn(filename, include_flags, element_types, verbose=False
         )
 
         dfs.append(df)
-
-    # df.columns[30:50
-    # type(df["mflag0"].iloc[0])
 
     out_df = dfs[0]
     if include_flags:
