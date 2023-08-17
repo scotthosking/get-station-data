@@ -75,11 +75,12 @@ def process_stn(
     # return and empty df and don't download/read file
     start_year = int(date_range[0][:4])
     end_year = int(date_range[0][:4])
-    if (end_year < stn_md1["start_year"].values[0]) or (start_year > stn_md1["end_year"].values[0]):
-        df = pd.DataFrame(
-            columns=STATION_DATA_COLS + [] if not include_flags else FLAG_COLS
-        )
-        return df
+    if date_range:
+        if (end_year < stn_md1["start_year"].values[0]) or (start_year > stn_md1["end_year"].values[0]):
+            df = pd.DataFrame(
+                columns=STATION_DATA_COLS + [] if not include_flags else FLAG_COLS
+            )
+            return df
     
     filename = "https://www.ncei.noaa.gov/pub/data/ghcn/daily/all/" + stn_id + ".dly"
     df = _create_DataFrame_1stn(filename, include_flags, element_types, date_range)
