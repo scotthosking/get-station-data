@@ -45,7 +45,7 @@ DIV10_ELEMENT_TYPES = [
 ]
 
 
-def process_stn(stn_id, stn_md, include_flags=True, element_types=None):
+def process_stn(stn_id, stn_md, include_flags=True, element_types=None, date_range=None):
     stn_md1 = stn_md[stn_md["station"] == stn_id]
     lat = stn_md1["lat"].values[0]
     lon = stn_md1["lon"].values[0]
@@ -54,7 +54,8 @@ def process_stn(stn_id, stn_md, include_flags=True, element_types=None):
 
     # file = 'ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/all/' + stn_id + '.dly'
     filename = "https://www.ncei.noaa.gov/pub/data/ghcn/daily/all/" + stn_id + ".dly"
-    df = _create_DataFrame_1stn(filename, include_flags, element_types)
+    df = _create_DataFrame_1stn(filename, include_flags, element_types, date_range)
+
 
     if len(pd.unique(df["station"])) == 1:
         df["lon"] = lon
@@ -77,6 +78,8 @@ def get_data(
     my_stns: pd.DataFrame,
     include_flags: bool = True,
     element_types: Optional[List[str]] = None,
+    date_range: Optional[Tuple[str, str]] = None,  # Add this parameter
+
 ) -> pd.DataFrame:
     """
     Fetches GHCND data. 
@@ -89,6 +92,10 @@ def get_data(
                                         Defaults to True.
         element_types (Optional[List[str]], optional): Only fetches element types in list, if None, fetches all. 
                                                       Defaults to None.
+        date_range (Optional[Tuple[str, str]], optional): Specifies the date range for data retrieval.
+            If provided, only data within the specified range (inclusive) will be fetched.
+            Format: (start_date, end_date), where both dates are in 'YYYY-MM-DD' format.
+            Defaults to None.
 
     Returns:
         pd.DataFrame: Station data. 
@@ -105,6 +112,7 @@ def get_data(
             stn_md=stn_md,
             include_flags=include_flags,
             element_types=element_types,
+            date_range=date_range, 
         )
         dfs = list(
             tqdm.tqdm(pool.imap(partial_process_stn, pd.unique(my_stns["station"])), total=len(my_stns))
@@ -113,7 +121,7 @@ def get_data(
     df = pd.concat(dfs)
     return df
 
-def _create_DataFrame_1stn(filename, include_flags, element_types, verbose=False):
+def _create_DataFrame_1stn(filename, include_flags, element_types, date_range=None, verbose=False):
     raw_array = pd.Series(np.genfromtxt(filename, delimiter="\n", dtype="str"))
 
     out_dict = {}
@@ -172,6 +180,10 @@ def _create_DataFrame_1stn(filename, include_flags, element_types, verbose=False
 
     if include_flags:
         out_df = out_df.fillna({"qflag": " ", "mflag": " ", "sflag": " "})
+
+    if date_range is not None:
+        start_date, end_date = pd.to_datetime(date_range[0]), pd.to_datetime(date_range[1])
+        out_df = out_df[(out_df["date"] >= start_date) & (out_df["date"] <= end_date)]
 
     if element_types is None:
         return out_df
