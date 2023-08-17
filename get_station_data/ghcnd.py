@@ -21,9 +21,13 @@ from joblib import Memory
 memory = Memory(".datacache", verbose=0)
 
 import multiprocessing
+import os
 from datetime import datetime
 from functools import partial
 from typing import List, Optional
+
+import datetime
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -44,18 +48,41 @@ DIV10_ELEMENT_TYPES = [
     "MXPN",
 ]
 
+STATION_DATA_COLS = [
+    "station",
+    "element",
+    "value",
+    "date",
+    "lon",
+    "lat",
+    "elev",
+    "name",
+]
 
-def process_stn(stn_id, stn_md, include_flags=True, element_types=None, date_range=None):
+FLAG_COLS = ["qflag", "mflag", "sflag"]
+
+
+def process_stn(
+    stn_id, stn_md, include_flags=True, element_types=None, date_range=None
+):
     stn_md1 = stn_md[stn_md["station"] == stn_id]
     lat = stn_md1["lat"].values[0]
     lon = stn_md1["lon"].values[0]
     elev = stn_md1["elev"].values[0]
     name = stn_md1["name"].values[0]
 
-    # file = 'ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/all/' + stn_id + '.dly'
+    # if the requested range and the stations range as provided in the metadata don't overlap
+    # return and empty df and don't download/read file
+    start_year = int(date_range[0][:4])
+    end_year = int(date_range[0][:4])
+    if (end_year < stn_md1["start_year"].values[0]) or (start_year > stn_md1["end_year"].values[0]):
+        df = pd.DataFrame(
+            columns=STATION_DATA_COLS + [] if not include_flags else FLAG_COLS
+        )
+        return df
+    
     filename = "https://www.ncei.noaa.gov/pub/data/ghcn/daily/all/" + stn_id + ".dly"
     df = _create_DataFrame_1stn(filename, include_flags, element_types, date_range)
-
 
     if len(pd.unique(df["station"])) == 1:
         df["lon"] = lon
@@ -73,24 +100,24 @@ def process_stn(stn_id, stn_md, include_flags=True, element_types=None, date_ran
 
     return df
 
+
 @memory.cache
 def get_data(
     my_stns: pd.DataFrame,
     include_flags: bool = True,
     element_types: Optional[List[str]] = None,
-    date_range: Optional[Tuple[str, str]] = None,  # Add this parameter
-
+    date_range: Optional[Tuple[str, str]] = None,  
 ) -> pd.DataFrame:
     """
-    Fetches GHCND data. 
+    Fetches GHCND data.
 
     Args:
         my_stns (pd.DataFrame): Contains metadata for stations to fetch, with columns station, lat, lon, elev, name
-        include_flags (bool, optional): If true includes flags which give information about data collection. 
-                                        False gives significant (5x) speedup. 
-                                        See https://www.ncei.noaa.gov/pub/data/ghcn/daily/readme.txt for details. 
+        include_flags (bool, optional): If true includes flags which give information about data collection.
+                                        False gives significant (5x) speedup.
+                                        See https://www.ncei.noaa.gov/pub/data/ghcn/daily/readme.txt for details.
                                         Defaults to True.
-        element_types (Optional[List[str]], optional): Only fetches element types in list, if None, fetches all. 
+        element_types (Optional[List[str]], optional): Only fetches element types in list, if None, fetches all.
                                                       Defaults to None.
         date_range (Optional[Tuple[str, str]], optional): Specifies the date range for data retrieval.
             If provided, only data within the specified range (inclusive) will be fetched.
@@ -98,10 +125,19 @@ def get_data(
             Defaults to None.
 
     Returns:
-        pd.DataFrame: Station data. 
+        pd.DataFrame: Station data.
     """
     print("Downloading station data...")
+    if date_range:
+        try:
+            datetime.date.fromisoformat(date_range[0])
+            datetime.date.fromisoformat(date_range[1])
+        except ValueError:
+            raise ValueError("Incorrect data format, should be YYYY-MM-DD")
 
+        assert int(date_range[0][:4]) < int(
+            date_range[1][:4]
+        ), "Start year must be less than end year."
     stn_md = get_stn_metadata()
 
     num_processes = multiprocessing.cpu_count()
@@ -112,16 +148,27 @@ def get_data(
             stn_md=stn_md,
             include_flags=include_flags,
             element_types=element_types,
-            date_range=date_range, 
+            date_range=date_range,
         )
         dfs = list(
-            tqdm.tqdm(pool.imap(partial_process_stn, pd.unique(my_stns["station"])), total=len(my_stns))
+            tqdm.tqdm(
+                pool.imap(partial_process_stn, pd.unique(my_stns["station"])),
+                total=len(my_stns),
+            )
         )
+
+    empty_dfs = sum([1 for df in dfs if len(df) == 0])
+
+    if empty_dfs > 0:
+        warnings.warn(f"{empty_dfs} stations had no data, caused by not recording the requested element type or date range.")
 
     df = pd.concat(dfs)
     return df
 
-def _create_DataFrame_1stn(filename, include_flags, element_types, date_range=None, verbose=False):
+
+def _create_DataFrame_1stn(
+    filename, include_flags, element_types, date_range=None, verbose=False
+):
     raw_array = pd.Series(np.genfromtxt(filename, delimiter="\n", dtype="str"))
 
     out_dict = {}
@@ -174,7 +221,8 @@ def _create_DataFrame_1stn(filename, include_flags, element_types, date_range=No
     ] /= 10
     out_df = (
         out_df.dropna(subset="date")
-        .sort_values(by=["station", "year", "month", "day", "element"])
+        .drop(columns=["year", "month", "day"])
+        .sort_values(by=["station", "date", "element"])
         .reset_index(drop=True)
     )
 
@@ -182,7 +230,9 @@ def _create_DataFrame_1stn(filename, include_flags, element_types, date_range=No
         out_df = out_df.fillna({"qflag": " ", "mflag": " ", "sflag": " "})
 
     if date_range is not None:
-        start_date, end_date = pd.to_datetime(date_range[0]), pd.to_datetime(date_range[1])
+        start_date, end_date = pd.to_datetime(date_range[0]), pd.to_datetime(
+            date_range[1]
+        )
         out_df = out_df[(out_df["date"] >= start_date) & (out_df["date"] <= end_date)]
 
     if element_types is None:
@@ -190,14 +240,37 @@ def _create_DataFrame_1stn(filename, include_flags, element_types, date_range=No
     else:
         return out_df.query("element.isin(@element_types)")
 
+
 @memory.cache
-def get_stn_metadata(fname=None):
-    url = "https://www1.ncdc.noaa.gov/pub/data/ghcn/daily/ghcnd-stations.txt"
+def get_stn_metadata(fname=None, inv_fname=None):
+    # Print dowloading metadata
+    url_md = "https://www1.ncdc.noaa.gov/pub/data/ghcn/daily/ghcnd-stations.txt"
+    url_inv = "https://www.ncei.noaa.gov/pub/data/ghcn/daily/ghcnd-inventory.txt"
+
     if fname == None:
-        fname = url
+        inv_fname = url_inv
+    print("Downloading inventory metadata...")
+    inv = (
+        pd.read_fwf(
+            inv_fname,
+            colspecs=[(0, 12), (35, 41), (41, 46)],
+            names=["station", "start_year", "end_year"],
+        )
+        .groupby(by="station")
+        .first()
+    )
+
+    inv["start_year"] = inv.start_year.astype(int)
+    inv["end_year"] = inv.end_year.astype(int)
+
+    if fname == None:
+        fname = url_md
+
+    print("Downloading station metadata...")
     md = pd.read_fwf(
         fname,
         colspecs=[(0, 12), (12, 21), (21, 31), (31, 38), (38, 69)],
         names=["station", "lat", "lon", "elev", "name"],
     )
-    return md
+
+    return md.join(inv, on="station", how="left")
