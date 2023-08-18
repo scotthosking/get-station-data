@@ -71,3 +71,5 @@ docs/tutorial/*.rst
 docs/tutorial/*_files
 .ipynb_checkpoints
 *.egg
+
+.datacache
