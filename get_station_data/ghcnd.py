@@ -73,9 +73,10 @@ def process_stn(
 
     # if the requested range and the stations range as provided in the metadata don't overlap
     # return and empty df and don't download/read file
-    start_year = int(date_range[0][:4])
-    end_year = int(date_range[0][:4])
+
     if date_range:
+        start_year = int(date_range[0][:4])
+        end_year = int(date_range[0][:4])
         if (end_year < stn_md1["start_year"].values[0]) or (start_year > stn_md1["end_year"].values[0]):
             df = pd.DataFrame(
                 columns=STATION_DATA_COLS + [] if not include_flags else FLAG_COLS
