@@ -21,20 +21,14 @@ def notebook_n5_metadata():
 
 
 @pytest.fixture
-def notebook_n5_data_tail():
-    return pd.DataFrame({
-        'station': ['UKE00107650', 'UKE00107650', 'UKE00107650', 'UKE00107650', 'UKE00107650'],
-        'element': ['TMIN', 'PRCP', 'SNWD', 'TMAX', 'TMIN'],
-        'value': [15.0, 0.6, 0.0, float('NaN'), 11.8],
-        'mflag': ['', '', '', '', ''],
-        'qflag': ['', '', '', '', ''],
-        'sflag': ['E', 'E', 'E', '', 'E'],
-        'date': ['2023-06-29', '2023-06-30', '2023-06-30', '2023-06-30', '2023-06-30'],
-        'lon': [0.4489, 0.4489, 0.4489, 0.4489, 0.4489],
-        'lat': [51.4789, 51.4789, 51.4789, 51.4789, 51.4789],
-        'elev': [25.0, 25.0, 25.0, 25.0, 25.0],
-        'name': ['HEATHROW', 'HEATHROW', 'HEATHROW', 'HEATHROW', 'HEATHROW']
-    })
+def stn_id():
+    return "UKE00105915"
+
+
+@pytest.fixture
+def stn_data(stn_id, notebook_n5_metadata):
+    sub_md = notebook_n5_metadata[notebook_n5_metadata.station == stn_id]
+    return ghcnd.get_data(sub_md)
 
 
 def test_notebook_nearest_metadata(notebook_n5_latlon, notebook_n5_metadata):
@@ -45,8 +39,37 @@ def test_notebook_nearest_metadata(notebook_n5_latlon, notebook_n5_metadata):
                           n_neighbours=5).drop(columns=["start_year", "end_year"]).reset_index(drop=True)
     assert target.equals(my_stns)
 
+"""
+Maually inspect the value at https://www.ncei.noaa.gov/pub/data/ghcn/daily/all/UKE00105915.dly, row 2 value 1
+"""
 
-def test_notebook_nearest_data_tail(notebook_n5_metadata, notebook_n5_data_tail):
-    df =  ghcnd.get_data(notebook_n5_metadata).reset_index(drop=True).tail()
-    assert df.equals(notebook_n5_data_tail)
+def test_stn_value_old(stn_data):
+    target_val = stn_data[(stn_data.date == pd.to_datetime(
+        "1960-01-01")) & (stn_data.element == "TMAX")]["value"].iloc[0]
+    assert target_val == 7.8
 
+def test_stn_value_new(stn_data):
+    target_val = stn_data[(stn_data.date == pd.to_datetime(
+        "2016-07-04")) & (stn_data.element == "TMIN")]["value"].iloc[0]
+    assert target_val == 10.4
+
+def test_stn_value_nan(stn_data):
+    target_val = stn_data[(stn_data.date == pd.to_datetime(
+        "2016-07-26")) & (stn_data.element == "TMAX")]["value"]
+    assert target_val.isna().iloc[0]
+
+
+def test_get_data_range(notebook_n5_metadata):
+    date_range = ('2010-01-01', '2023-01-01')
+    df = ghcnd.get_data(notebook_n5_metadata, date_range=date_range)
+    is_between = df.date.between(pd.to_datetime(date_range[0]), pd.to_datetime(date_range[1]))
+    assert is_between.all()
+     
+
+def test_get_data_flags(notebook_n5_metadata):
+    df = ghcnd.get_data(notebook_n5_metadata, include_flags=False)
+    assert "qflag" not in df.columns
+
+def test_get_data_element_type(notebook_n5_metadata):
+    df = ghcnd.get_data(notebook_n5_metadata, element_types=["TMAX", "TMIN"])
+    assert df.element.isin(["TMAX", "TMIN"]).all()
