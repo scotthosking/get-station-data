@@ -137,7 +137,7 @@ def get_data(
         except ValueError:
             raise ValueError("Incorrect data format, should be YYYY-MM-DD")
 
-        assert pd.Timestamp(date_range[0]) <= pd.Timestamp(date_range[1]), "Start year must be less than end year."
+        assert pd.Timestamp(date_range[0]) <= pd.Timestamp(date_range[1]), "Start date must be earlier than end date."
     stn_md = get_stn_metadata()
 
     num_processes = multiprocessing.cpu_count()
