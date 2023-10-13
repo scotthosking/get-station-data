@@ -38,6 +38,9 @@ DIV10_ELEMENT_TYPES = [
     "PRCP",
     "TMAX",
     "TMIN",
+    "TAXN",
+    "TAVG",
+    "TOBS",
     "AWND",
     "EVAP",
     "MDEV",
@@ -46,6 +49,18 @@ DIV10_ELEMENT_TYPES = [
     "MDTX",
     "MNPN",
     "MXPN",
+    "ADPT",
+    "SN*#",
+    "SX*#",
+    "THIC",
+    "WESD",
+    "WESF",
+    "WSF1",
+    "WSF2",
+    "WSF5",
+    "WSFG",
+    "WSFI",
+    "WSFM",
 ]
 
 STATION_DATA_COLS = [
