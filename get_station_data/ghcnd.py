@@ -169,6 +169,7 @@ def get_data(
             tqdm.tqdm(
                 pool.imap(partial_process_stn, pd.unique(my_stns["station"])),
                 total=len(my_stns),
+                smoothing=0,
             )
         )
 
