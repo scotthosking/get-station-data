@@ -207,6 +207,7 @@ def _create_DataFrame_1stn(
                 out_dict[d] = (
                     raw_array.str[idx[0] : idx[1]]
                     .replace("-9999", np.nan)
+                    .replace("-", np.nan)
                     .replace("", np.nan)
                     .astype(float)
                 )
