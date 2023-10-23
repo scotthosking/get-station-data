@@ -117,7 +117,7 @@ def process_stn(
 
 
 def get_data(
-    my_stns: pd.DataFrame,
+    stn_md: pd.DataFrame,
     include_flags: bool = True,
     element_types: Optional[List[str]] = None,
     date_range: Optional[Tuple[str, str]] = None,
@@ -129,7 +129,7 @@ def get_data(
     Fetches GHCND data.
 
     Args:
-        my_stns (pd.DataFrame):
+        stn_md (pd.DataFrame):
             Contains metadata for stations to fetch, with columns station, lat, lon, elev, name
         include_flags (bool, optional):
             If true includes flags which give information about data collection.
@@ -161,7 +161,7 @@ def get_data(
 
     @memory.cache
     def _get_data(
-        my_stns: pd.DataFrame,
+        stn_md: pd.DataFrame,
         include_flags: bool = True,
         element_types: Optional[List[str]] = None,
         date_range: Optional[Tuple[str, str]] = None,
@@ -178,7 +178,6 @@ def get_data(
                 raise ValueError("Incorrect data format, should be YYYY-MM-DD")
 
             assert pd.Timestamp(date_range[0]) <= pd.Timestamp(date_range[1]), "Start date must be earlier than end date."
-        stn_md = get_stn_metadata(verbose=verbose, cache=cache)
 
         if num_processes is None:
             # If user hasn't specified num CPUs, use 75% of available CPUs
@@ -196,8 +195,8 @@ def get_data(
             )
             dfs = list(
                 tqdm.tqdm(
-                    pool.imap(partial_process_stn, pd.unique(my_stns["station"])),
-                    total=len(my_stns),
+                    pool.imap(partial_process_stn, pd.unique(stn_md["station"])),
+                    total=len(stn_md),
                     smoothing=0,
                 )
             )
@@ -210,7 +209,7 @@ def get_data(
         df = pd.concat(dfs)
         return df
 
-    return _get_data(my_stns, include_flags, element_types, date_range, num_processes, verbose)
+    return _get_data(stn_md, include_flags, element_types, date_range, num_processes, verbose)
 
 
 def _create_DataFrame_1stn(
