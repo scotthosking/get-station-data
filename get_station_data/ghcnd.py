@@ -296,9 +296,7 @@ def get_stn_metadata(fname=None, inv_fname=None, verbose=True, cache=False):
     memory = Memory(location, verbose=0)
 
     @memory.cache
-    def _get_stn_metadata(fname=None, inv_fname=None, verbose=True, cache=False):
-        if not cache:
-            memory = Memory(location=None)
+    def _get_stn_metadata(fname=None, inv_fname=None, verbose=True):
         # Print dowloading metadata
         url_md = "https://www1.ncdc.noaa.gov/pub/data/ghcn/daily/ghcnd-stations.txt"
         url_inv = "https://www.ncei.noaa.gov/pub/data/ghcn/daily/ghcnd-inventory.txt"
@@ -333,4 +331,4 @@ def get_stn_metadata(fname=None, inv_fname=None, verbose=True, cache=False):
 
         return md.join(inv, on="station", how="left")
 
-    return _get_stn_metadata(fname=None, inv_fname=None, verbose=True)
+    return _get_stn_metadata(fname=fname, inv_fname=inv_fname, verbose=verbose)
