@@ -124,6 +124,7 @@ def get_data(
     num_processes: Optional[int] = None,
     verbose=True,
     cache=False,
+    cache_dir=".datacache",
 ) -> pd.DataFrame:
     """
     Fetches GHCND data.
@@ -154,10 +155,8 @@ def get_data(
         pd.DataFrame: Station data.
     """
     if not cache:
-        location = None
-    else:
-        location = ".datacache"
-    memory = Memory(location, verbose=0)
+        cache_dir = None
+    memory = Memory(cache_dir, verbose=0)
 
     @memory.cache
     def _get_data(
@@ -288,12 +287,10 @@ def _create_DataFrame_1stn(
         return out_df.query("element.isin(@element_types)")
 
 
-def get_stn_metadata(fname=None, inv_fname=None, verbose=True, cache=False):
+def get_stn_metadata(fname=None, inv_fname=None, verbose=True, cache=False, cache_dir=".datacache"):
     if not cache:
-        location = None
-    else:
-        location = ".datacache"
-    memory = Memory(location, verbose=0)
+        cache_dir = None
+    memory = Memory(cache_dir, verbose=0)
 
     @memory.cache
     def _get_stn_metadata(fname=None, inv_fname=None, verbose=True):
