@@ -13,6 +13,8 @@ Author: Dr Scott Hosking (British Antarctic Survey)
 Date:   28th February 2017
 
 Updated: 29th August 2022 - add new data source root location (https://www.ncei.noaa.gov/)
+
+Updated: September/October 2023 - speed up downloads and improve robustness (Magnus Ross & Tom Andersson)
 """
 from __future__ import annotations
 
@@ -20,6 +22,9 @@ from joblib import Memory
 
 import multiprocessing
 import os
+import shutil
+import urllib.request
+from time import sleep
 from datetime import datetime
 from functools import partial
 from typing import List, Optional
@@ -76,7 +81,7 @@ FLAG_COLS = ["qflag", "mflag", "sflag"]
 
 
 def process_stn(
-    stn_id, stn_md, include_flags=True, element_types=None, date_range=None
+    stn_id, stn_md, tmp_download_folder, include_flags=True, element_types=None, date_range=None
 ):
     stn_md1 = stn_md[stn_md["station"] == stn_id]
     lat = stn_md1["lat"].values[0]
@@ -96,8 +101,16 @@ def process_stn(
             )
             return df
 
+    # Download station data
+    local_filename = os.path.join(tmp_download_folder, stn_id + ".dly")
     filename = "https://www.ncei.noaa.gov/pub/data/ghcn/daily/all/" + stn_id + ".dly"
-    df = _create_DataFrame_1stn(filename, include_flags, element_types, date_range)
+
+    backoff(urllib.request.urlretrieve, filename, local_filename)
+
+    df = _create_DataFrame_1stn(local_filename, include_flags, element_types, date_range)
+
+    # Delete temporary local file
+    os.remove(local_filename)
 
     if len(pd.unique(df["station"])) == 1:
         df["lon"] = lon
@@ -184,10 +197,14 @@ def get_data(
             if verbose:
                 print(f"Using {num_processes} CPUs out of {multiprocessing.cpu_count()}... ")
 
+        tmp_download_folder = "tmp_ghcnd"
+        os.makedirs(tmp_download_folder, exist_ok=True)
+
         with multiprocessing.Pool(processes=num_processes) as pool:
             partial_process_stn = partial(
                 process_stn,
                 stn_md=stn_md,
+                tmp_download_folder=tmp_download_folder,
                 include_flags=include_flags,
                 element_types=element_types,
                 date_range=date_range,
@@ -197,8 +214,11 @@ def get_data(
                     pool.imap(partial_process_stn, pd.unique(stn_md["station"])),
                     total=len(stn_md),
                     smoothing=0,
+                    # Add `disable=not verbose,`?
                 )
             )
+
+        shutil.rmtree(tmp_download_folder)
 
         empty_dfs = sum([1 for df in dfs if len(df) == 0])
 
@@ -206,6 +226,7 @@ def get_data(
             warnings.warn(f"{empty_dfs} stations had no data, caused by not recording the requested element type or date range.")
 
         df = pd.concat(dfs)
+
         return df
 
     return _get_data(stn_md, include_flags, element_types, date_range, num_processes, verbose)
@@ -294,7 +315,6 @@ def get_stn_metadata(fname=None, inv_fname=None, verbose=True, cache=False, cach
 
     @memory.cache
     def _get_stn_metadata(fname=None, inv_fname=None, verbose=True):
-        # Print dowloading metadata
         url_md = "https://www1.ncdc.noaa.gov/pub/data/ghcn/daily/ghcnd-stations.txt"
         url_inv = "https://www.ncei.noaa.gov/pub/data/ghcn/daily/ghcnd-inventory.txt"
 
@@ -302,15 +322,18 @@ def get_stn_metadata(fname=None, inv_fname=None, verbose=True, cache=False, cach
             inv_fname = url_inv
         if verbose:
             print("Downloading inventory metadata...")
+        local_filename = "tmp_inv.txt"
+        backoff(urllib.request.urlretrieve, inv_fname, local_filename)
         inv = (
             pd.read_fwf(
-                inv_fname,
+                local_filename,
                 colspecs=[(0, 12), (35, 41), (41, 46)],
                 names=["station", "start_year", "end_year"],
             )
             .groupby(by="station")
             .first()
         )
+        os.remove(local_filename)
 
         inv["start_year"] = inv.start_year.astype(int)
         inv["end_year"] = inv.end_year.astype(int)
@@ -320,12 +343,50 @@ def get_stn_metadata(fname=None, inv_fname=None, verbose=True, cache=False, cach
 
         if verbose:
             print("Downloading station metadata...")
+        local_filename = "tmp_md.txt"
+        backoff(urllib.request.urlretrieve, fname, local_filename)
         md = pd.read_fwf(
-            fname,
+            local_filename,
             colspecs=[(0, 12), (12, 21), (21, 31), (31, 38), (38, 69)],
             names=["station", "lat", "lon", "elev", "name"],
         )
+        os.remove(local_filename)
 
         return md.join(inv, on="station", how="left")
 
     return _get_stn_metadata(fname=fname, inv_fname=inv_fname, verbose=verbose)
+
+
+def backoff(callable_fn, *args, num_retries=4):
+    """
+    Repeat calling `callable_fn` with `args` until an exception does not occur
+    or `num_retries` attempts have occurred (in which case, nothing is returned).
+
+    Useful for robust downloading when either the client or server has
+    a patchy connection.
+
+    Args:
+        callable_fn: callable
+            The function to call in the backoff loop.
+        args:
+            The arguments to pass to the callable.
+        num_retries: int
+            Number of times to retry calling the function before giving up.
+    """
+    sleep_time = 1
+    for attempt_i in range(0, num_retries):
+        try:
+            val = callable_fn(*args)
+            str_error = None
+        except Exception as e:
+            str_error = str(e)
+            if attempt_i == num_retries - 1:
+                warnings.warn(f"{callable_fn.__name__} failed with args {args} after {num_retries} retries. "
+                              f"Received error {str(e)}. ")
+                return
+
+        if str_error:
+            sleep(sleep_time)  # wait before trying to fetch the data again
+            sleep_time *= 2  # Implement your backoff algorithm here i.e. exponential backoff
+        else:
+            return val
