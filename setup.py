@@ -17,7 +17,7 @@ setup(
     name='get-station-data',
     version='0.1',
     author='J. Scott Hosking',
-    author_email='jask@bas.ac.uk',
+    author_email='shosking@turing.ac.uk',
     packages=find_packages(),
     url='https://github.com/scotthosking/get-station-data',
     description='Package for fetching weather station data from GHCN-Daily and GHCN-monthly',
